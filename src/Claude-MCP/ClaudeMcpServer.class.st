@@ -94,6 +94,17 @@ ClaudeMcpServer class >> startOnPort: aPort [
 		yourself
 ]
 
+{ #category : 'accessing' }
+ClaudeMcpServer >> acpServerEntry [
+	"Return an ACP-compatible mcpServers array for this server."
+	^ { Dictionary new
+		at: 'name' put: 'gt-image';
+		at: 'type' put: 'http';
+		at: 'url' put: 'http://localhost:', self port asString, '/';
+		at: 'headers' put: #();
+		yourself }
+]
+
 { #category : 'tools' }
 ClaudeMcpServer >> addAddSnippetTool [
 	self addTool: (GtLlmFunctionTool new
@@ -443,6 +454,12 @@ ClaudeMcpServer >> announcer [
 	^ announcer ifNil: [ announcer := Announcer new ]
 ]
 
+{ #category : 'actions' }
+ClaudeMcpServer >> ensureRunning [
+	"Start the MCP server if it is not already running."
+	self isRunning ifFalse: [ self start ]
+]
+
 { #category : 'gt-actions' }
 ClaudeMcpServer >> gtClearHistoryActionFor: anAction [
 	<gtAction>
@@ -598,6 +615,11 @@ ClaudeMcpServer >> initialize [
 	super initialize.
 	maxLength := 2000.
 	server := GtMcpServer new port: 3030.
+]
+
+{ #category : 'testing' }
+ClaudeMcpServer >> isRunning [
+	^ server isRunning
 ]
 
 { #category : 'accessing' }

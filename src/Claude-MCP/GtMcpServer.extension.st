@@ -42,3 +42,8 @@ GtMcpServer >> handleRequest: request [
 	history add: request -> response.
 	^ response
 ]
+
+{ #category : '*Claude-MCP' }
+GtMcpServer >> isRunning [
+	^ server notNil and: [ server isRunning ]
+]
