@@ -15,9 +15,12 @@ permissions:
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
+    # head_repository check: only merge PRs from branches in this repo — a
+    # stranger's fork PR with green CI must not merge itself.
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     steps:
       - name: Merge open PRs with passing checks
         env:
@@ -29,12 +32,8 @@ jobs:
         run: |
           HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
 
-          # Only PRs from the owner, org members, or collaborators — a green
-          # CI run on a stranger's PR must not merge itself.
-          prs=$(gh api "repos/${{ github.repository }}/pulls?state=open" --jq "
-            .[] | select(.head.sha == \"$HEAD_SHA\")
-                | select(.author_association == \"OWNER\" or .author_association == \"MEMBER\" or .author_association == \"COLLABORATOR\")
-                | .number")
+          # Find open PRs matching the SHA the CI workflow ran against
+          prs=$(gh pr list --repo "${{ github.repository }}" --state open --json number,headRefOid --jq ".[] | select(.headRefOid == \"$HEAD_SHA\") | .number")
 
           for pr in $prs; do
             echo "Attempting to merge PR #$pr"
