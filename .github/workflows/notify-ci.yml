@@ -1,0 +1,36 @@
+name: Notify CI hub
+
+# All CI for this repo runs centrally in VitifyCode/VitifyCode-CI (Hub CI):
+# this workflow only reports events there. The hub tests every change inside
+# the full VitifyCode GT image, posts a gt-hub/full-image commit status and a
+# summary comment back here, auto-merges green PRs, and on green main runs
+# releases the image and triggers the PAS runtime redeploy.
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions: {}
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to the hub
+        env:
+          GH_TOKEN: ${{ secrets.CI_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            gh api repos/VitifyCode/VitifyCode-CI/dispatches \
+              -f event_type=gt-pr \
+              -F "client_payload[repo]=${{ github.repository }}" \
+              -F "client_payload[sha]=${{ github.event.pull_request.head.sha }}" \
+              -F "client_payload[branch]=${{ github.event.pull_request.head.ref }}" \
+              -F "client_payload[pr_number]=${{ github.event.number }}"
+          else
+            gh api repos/VitifyCode/VitifyCode-CI/dispatches \
+              -f event_type=gt-main \
+              -F "client_payload[repo]=${{ github.repository }}" \
+              -F "client_payload[sha]=${{ github.sha }}"
+          fi
