@@ -1,21 +1,25 @@
-name: Notify CI hub
+name: CI
 
-# All CI for this repo runs centrally in VitifyCode/VitifyCode-CI (Hub CI):
-# this workflow only reports events there. The hub tests every change inside
-# the full VitifyCode GT image, posts a gt-hub/full-image commit status and a
-# summary comment back here, auto-merges green PRs, and on green main runs
-# releases the image and triggers the PAS runtime redeploy.
+# All CI runs centrally in VitifyCode/VitifyCode-CI (Hub CI): this workflow
+# reports events there, and for PRs waits for the hub's verdict so the
+# Checks tab shows the real CI result and duration — otherwise the only
+# visible check is the seconds-long dispatch, which reads as "merged
+# without CI". The hub posts a gt-hub/full-image commit status and a
+# summary comment, and auto-merges green PRs.
 on:
   pull_request:
     branches: [master]
   push:
     branches: [master]
 
-permissions: {}
+permissions:
+  statuses: read
+  contents: read
 
 jobs:
-  dispatch:
+  full-image:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - name: Dispatch to the hub
         env:
@@ -34,3 +38,21 @@ jobs:
               -F "client_payload[repo]=${{ github.repository }}" \
               -F "client_payload[sha]=${{ github.sha }}"
           fi
+
+      - name: Wait for the full-image verdict
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.event.pull_request.head.sha }}"
+          echo "Waiting for gt-hub/full-image on $SHA (hub run link appears in the PR statuses)..."
+          for i in $(seq 1 150); do
+            STATE=$(gh api "repos/${{ github.repository }}/commits/$SHA/status" \
+              --jq '[.statuses[] | select(.context=="gt-hub/full-image")][0].state // "none"')
+            case "$STATE" in
+              success) echo "Full-image suite passed"; exit 0 ;;
+              failure|error) echo "Full-image suite: $STATE"; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "Timed out waiting for the hub verdict"; exit 1
