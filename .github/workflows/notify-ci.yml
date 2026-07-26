@@ -1,9 +1,10 @@
 name: CI
 
 # All CI runs centrally in VitifyCode/VitifyCode-CI (Hub CI): this workflow
-# only reports events there. The hub posts a native "gt-hub / full-image"
-# check run (via the vitifycode-ci-bot App) with the verdict and test
-# summary, comments on PRs, and auto-merges green ones.
+# only reports events there, authenticating as the vitifycode-ci-bot App
+# (short-lived token, scoped to the hub repo). The hub posts a native
+# "gt-hub / full-image" check run with the verdict and test summary,
+# comments on PRs, and auto-merges green ones.
 on:
   pull_request:
     branches: [master]
@@ -16,9 +17,18 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     steps:
+      - name: Mint App token
+        id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: VitifyCode
+          repositories: VitifyCode-CI
+
       - name: Dispatch to the hub
         env:
-          GH_TOKEN: ${{ secrets.CI_TOKEN }}
+          GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             gh api repos/VitifyCode/VitifyCode-CI/dispatches \
