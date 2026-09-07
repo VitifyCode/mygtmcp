@@ -13,10 +13,14 @@ GtMcpServer >> clearHistory [
 { #category : '*Claude-MCP' }
 GtMcpServer >> handleRequest: request [
 	| jsonRpc response jsonRpcResult |
-	request method = 'GET' ifTrue: [
-		^ (ZnResponse statusCode: 405)
-			headers: (ZnHeaders defaultResponseHeaders);
-			yourself ].
+	request method = 'POST' ifFalse: [
+		| notAllowedResponse |
+		notAllowedResponse := (ZnResponse statusCode: 405)
+			headers: ZnHeaders defaultResponseHeaders;
+			entity: (ZnEntity text: '');
+			yourself.
+		notAllowedResponse headers at: 'Allow' put: 'POST'.
+		^ notAllowedResponse ].
 	[ jsonRpc := GtMcpJsonRpc on: (STONJSON fromString: request entity contents) ]
 		on: Error
 		do: [ ^ ZnResponse badRequest: request ].
@@ -29,11 +33,10 @@ GtMcpServer >> handleRequest: request [
 				'content' -> { { 'type' -> 'text'. 'text' -> ('Error: ', anError class name, ' - ', anError messageText) } asDictionary } asArray. 
 				'isError' -> true 
 			} asDictionary ].
-	"JSON-RPC notifications have no id - return 202 Accepted with empty body"
+	"JSON-RPC notifications have no id - return 202 Accepted with an empty body so the client sees Content-Length: 0"
 	jsonRpc id ifNil: [
 		| notificationResponse |
-		notificationResponse := ZnResponse new.
-		notificationResponse statusLine: (ZnStatusLine code: 202).
+		notificationResponse := self createAcceptedResponse.
 		history add: request -> notificationResponse.
 		^ notificationResponse ].
 	response := (GtMcpJsonRpc new
