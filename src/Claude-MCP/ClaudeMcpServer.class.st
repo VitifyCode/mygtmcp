@@ -219,7 +219,7 @@ ClaudeMcpServer >> addGetExamplesTool [
 			type := args at: 'type' ifAbsent: [ 'class' ].
 			[ examples := type = 'package'
 				ifTrue: [ | pkg |
-					pkg := RPackageOrganizer default packageNamed: name asSymbol.
+					pkg := self packageOrganizer packageNamed: name asSymbol.
 					pkg definedClasses flatCollect: [:cls |
 						(cls methods, cls class methods) select: [:m | m hasPragmaNamed: #gtExample ]]]
 				ifFalse: [ | cls |
@@ -290,7 +290,7 @@ ClaudeMcpServer >> addGetPackageInfoTool [
 		block: [ :functionCall |
 			| pkgName pkg classes output |
 			pkgName := functionCall anyArgument asSymbol.
-			[ pkg := RPackageOrganizer default packageNamed: pkgName ]
+			[ pkg := self packageOrganizer packageNamed: pkgName ]
 				on: Error
 				do: [ :e | pkg := nil ].
 			pkg
@@ -696,4 +696,13 @@ ClaudeMcpServer >> truncate: aString to: max [
 	^ aString size > max
 		ifTrue: [ (aString first: max), '... (truncated, ', (aString size - max) asString, ' more chars)' ]
 		ifFalse: [ aString ]
+]
+
+{ #category : 'private' }
+ClaudeMcpServer >> packageOrganizer [
+	"Newer GT (Pharo 12+) renamed RPackageOrganizer to PackageOrganizer; resolve
+	 by name at runtime so this compiles against either."
+	^ (Smalltalk globals
+		at: #RPackageOrganizer
+		ifAbsent: [ Smalltalk globals at: #PackageOrganizer ]) default
 ]
