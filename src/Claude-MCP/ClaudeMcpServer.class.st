@@ -1,7 +1,7 @@
 "
 An MCP (Model Context Protocol) server that exposes Glamorous Toolkit capabilities as tools for Claude and other LLM clients.
 
-ClaudeMcpServer wraps a GtMcpServer and registers a set of tools that allow an LLM to interact with the GT environment: evaluating Smalltalk code, browsing classes and methods, managing Lepiter knowledge base pages, and more.
+ClaudeMcpServer wraps a ClaudeGtLMcpServer (a GtLMcpServer) and registers a set of tools that allow an LLM to interact with the GT environment: evaluating Smalltalk code, browsing classes and methods, managing Lepiter knowledge base pages, and more.
 
 ## Quick Start
 
@@ -55,7 +55,7 @@ The server registers the following tools via `addAllTools`:
 
 ## Instance Variables
 
-- `server` — the underlying `GtMcpServer` instance.
+- `server` — the underlying `ClaudeGtLMcpServer` instance.
 - `maxLength` — maximum character length for truncating tool output (default 2000).
 
 "
@@ -77,6 +77,15 @@ Class {
 { #category : 'accessing' }
 ClaudeMcpServer class >> default [
 	^ DefaultInstance ifNil: [ DefaultInstance := self new ]
+]
+
+{ #category : 'class initialization' }
+ClaudeMcpServer class >> initialize [
+	"Loading this code over an image whose default instance wraps an older server class
+	 (GtMcpServer, gone since GT v1.1.627) drops that default; the next #default builds
+	 a fresh one."
+	(DefaultInstance notNil and: [ (DefaultInstance server isKindOf: ClaudeGtLMcpServer) not ])
+		ifTrue: [ self resetDefault ]
 ]
 
 { #category : 'accessing' }
@@ -107,7 +116,7 @@ ClaudeMcpServer >> acpServerEntry [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addAddSnippetTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'addSnippet';
 		parameters: {'pageTitle'. 'content'. 'snippetType'};
 		description: 'Adds a new snippet to a Lepiter page. snippetType can be "text" or "pharo". Returns the new snippet UID.';
@@ -148,7 +157,7 @@ ClaudeMcpServer >> addAllTools [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addDefineClassTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'defineClass';
 		parameters: {'superclassName'. 'className'. 'instanceVariableNames'. 'package'};
 		description: 'Defines a new class. superclassName is the parent class (e.g., "Object"), className is the new class name, instanceVariableNames is a space-separated string of ivar names, package is the package name.';
@@ -169,7 +178,7 @@ ClaudeMcpServer >> addDefineClassTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addDefineMethodTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'defineMethod';
 		parameters: {'className'. 'sourceCode'. 'protocol'};
 		description: 'Defines or updates a method on a class. For class-side methods, append " class" to className (e.g., "MyClass class"). The sourceCode should be the complete method source including the selector.';
@@ -192,7 +201,7 @@ ClaudeMcpServer >> addDefineMethodTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addEvaluateTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'evaluate';
 		parameters: {'expression'. 'maxLength'};
 		description: 'Evaluates a Smalltalk expression and returns the result as a string. Results are truncated to maxLength (default 2000 characters).';
@@ -208,7 +217,7 @@ ClaudeMcpServer >> addEvaluateTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addGetExamplesTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'getExamples';
 		parameters: {'name'. 'type'};
 		description: 'Gets gtExample methods. Type can be "class" (examples defined in that class, including inherited) or "package" (all examples in package). Returns method names and first lines of code.';
@@ -242,7 +251,7 @@ ClaudeMcpServer >> addGetExamplesTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addGetImplementorsTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'getImplementors';
 		parameters: {'methodName'};
 		description: 'Gets a method by name and returns a list of methods that implement it.';
@@ -256,7 +265,7 @@ ClaudeMcpServer >> addGetImplementorsTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addGetMethodSourceTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'getMethodSource';
 		parameters: {'methodReference'};
 		description: 'Gets the source code for a method. Takes a method reference in the format "ClassName>>#methodName" for instance methods or "ClassName class>>#methodName" for class methods.';
@@ -283,7 +292,7 @@ ClaudeMcpServer >> addGetMethodSourceTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addGetPackageInfoTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'getPackageInfo';
 		parameters: {'packageName'};
 		description: 'Gets information about a package: its classes and their methods.';
@@ -309,7 +318,7 @@ ClaudeMcpServer >> addGetPackageInfoTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addGetReferencesTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'getReferences';
 		parameters: {'name'. 'type'};
 		description: 'Gets references to a name. Type can be "class" (all references to a class) or "selector" (all senders of a selector). Returns a list of method references.';
@@ -344,7 +353,7 @@ ClaudeMcpServer >> addGetReferencesTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addListPagesTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'listPages';
 		parameters: #('query');
 		description: 'Lists Lepiter pages with their titles and UIDs. The optional query parameter filters pages by case-insensitive substring match on the title. Without a query, lists all pages (may be truncated).';
@@ -364,7 +373,7 @@ ClaudeMcpServer >> addListPagesTool [
 
 { #category : 'tools - lepiter' }
 ClaudeMcpServer >> addReadPageTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'readPage';
 		parameters: {'pageTitle'};
 		description: 'Reads a Lepiter page by title. Returns snippets with their UIDs, types, and content.';
@@ -392,7 +401,7 @@ ClaudeMcpServer >> addReadPageTool [
 
 { #category : 'tools' }
 ClaudeMcpServer >> addReadSnippetTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'readSnippet';
 		parameters: {'snippetUid'};
 		description: 'Reads a specific Lepiter snippet by UID. Returns full content.';
@@ -416,17 +425,17 @@ ClaudeMcpServer >> addReadSnippetTool [
 ]
 
 { #category : 'tools' }
-ClaudeMcpServer >> addTool: aGtLlmFunctionTool [
+ClaudeMcpServer >> addTool: aFunctionTool [
         "Wrap the tool's block so the result is always truncated before being returned."
         | originalBlock |
-        originalBlock := aGtLlmFunctionTool block.
-        aGtLlmFunctionTool block: [ :call | self truncate: (originalBlock value: call) ].
-        server addTool: aGtLlmFunctionTool
+        originalBlock := aFunctionTool block.
+        aFunctionTool block: [ :call | self truncate: (originalBlock value: call) ].
+        server addTool: aFunctionTool
 ]
 
 { #category : 'tools' }
 ClaudeMcpServer >> addUpdateSnippetTool [
-	self addTool: (GtLlmFunctionTool new
+	self addTool: (ClaudeMcpTextTool new
 		name: 'updateSnippet';
 		parameters: {'snippetUid'. 'content'};
 		description: 'Updates a Lepiter snippet content by UID. Only works for textual snippets.';
@@ -614,7 +623,7 @@ ClaudeMcpServer >> gtToolsFor: aView [
 ClaudeMcpServer >> initialize [
 	super initialize.
 	maxLength := 2000.
-	server := GtMcpServer new port: 3030.
+	server := ClaudeGtLMcpServer new port: 3030.
 ]
 
 { #category : 'testing' }
@@ -634,25 +643,17 @@ ClaudeMcpServer >> maxLength: aNumber [
 
 { #category : 'private' }
 ClaudeMcpServer >> parsedHistory [
-	"Parse history into a collection of dictionaries with keys: toolName, arguments, result, isError, request, response"
-	| history |
-	history := server instVarNamed: 'history'.
-	^ history collect: [ :assoc |
-		| reqJson respJson params toolName args result isError |
-		reqJson := [ NeoJSONReader fromString: assoc key entity contents ] on: Error do: [ :e | Dictionary new ].
-		respJson := [ NeoJSONReader fromString: assoc value entity contents ] on: Error do: [ :e | Dictionary new ].
-		params := reqJson at: 'params' ifAbsent: [ Dictionary new ].
-		toolName := params at: 'name' ifAbsent: [ reqJson at: 'method' ifAbsent: [ '?' ] ].
-		args := params at: 'arguments' ifAbsent: [ Dictionary new ].
-		result := respJson at: 'result' ifAbsent: [ Dictionary new ].
-		isError := (result isDictionary and: [ result at: 'isError' ifAbsent: [ false ] ]).
-		{ 
-			#toolName -> toolName.
-			#arguments -> args.
-			#result -> result.
-			#isError -> isError.
-			#request -> assoc key.
-			#response -> assoc value
+	"Parse history into a collection of dictionaries with keys: toolName, arguments, result, isError, message.
+	A tool call that raised an error never gets an output, so it reads as an error."
+	^ server historySnapshot collect: [ :aToolMessage |
+		| toolCall |
+		toolCall := aToolMessage toolCall.
+		{
+			#toolName -> (toolCall ifNil: [ '?' ] ifNotNil: [ toolCall name ]).
+			#arguments -> (toolCall ifNil: [ Dictionary new ] ifNotNil: [ toolCall arguments ifNil: [ Dictionary new ] ]).
+			#result -> aToolMessage output.
+			#isError -> aToolMessage output isNil.
+			#message -> aToolMessage
 		} asDictionary ]
 ]
 
