@@ -79,6 +79,15 @@ ClaudeMcpServer class >> default [
 	^ DefaultInstance ifNil: [ DefaultInstance := self new ]
 ]
 
+{ #category : 'class initialization' }
+ClaudeMcpServer class >> initialize [
+	"Loading this code over an image whose default instance wraps an older server class
+	 (GtMcpServer, gone since GT v1.1.627) drops that default; the next #default builds
+	 a fresh one."
+	(DefaultInstance notNil and: [ (DefaultInstance server isKindOf: ClaudeGtLMcpServer) not ])
+		ifTrue: [ self resetDefault ]
+]
+
 { #category : 'accessing' }
 ClaudeMcpServer class >> resetDefault [
 	DefaultInstance ifNotNil: [ :inst | 
