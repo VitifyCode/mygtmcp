@@ -9,7 +9,7 @@ Class {
 BaselineOfMyGtMcp class >> loadLepiter [
 	IceRepository registry  
 		detect: [ :aRepository |
-			aRepository name = 'MyGtMcp' ]
+			aRepository name = 'mygtmcp' ]
 		ifFound: [ :aRepository | 
 			| defaultDatabase currentProperties |
 			defaultDatabase := LeDatabasesRegistry defaultLogicalDatabase.
